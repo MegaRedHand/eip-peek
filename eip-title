@@ -1,0 +1,67 @@
+#!/bin/zsh
+# eip-title: look up the title of the first EIP/ERC number in $1 (or stdin).
+#
+# Checks forkcast's EIP index first, since it carries EIPs still sitting in a PR
+# that eips.ethereum.org doesn't list, then falls back to eips.ethereum.org
+# (which also redirects ERC numbers).
+#
+# Usage: eip-title [--hud] [text]
+#   --hud  show the result in a label next to the cursor (Quick Action mode);
+#          see eip-hud.swift
+
+set -u
+
+hud=false
+if [[ ${1:-} == --hud ]]; then
+  hud=true
+  shift
+fi
+
+input=${1:-$(cat)}
+num=$(print -r -- "$input" | grep -oE '[0-9]+' | head -1)
+
+title=""
+url=""
+if [[ -z $num || ${#num} -gt 6 ]]; then
+  title="No EIP number in selection: ${input[1,40]}"
+else
+  num=$((10#$num))
+
+  # forkcast's whole index is one file, so cache it and refresh it daily.
+  cache_dir=~/Library/Caches/eip-title
+  cache=$cache_dir/forkcast-eips.json
+  mkdir -p $cache_dir
+  if [[ ! -s $cache || -n $(find $cache -mtime +0) ]]; then
+    curl -fsS -m 10 https://forkcast.org/api/eips.json -o $cache.tmp \
+      && mv $cache.tmp $cache \
+      || rm -f $cache.tmp
+  fi
+
+  if [[ -s $cache ]]; then
+    title=$(/usr/bin/jq -r --argjson n $num '.eips[] | select(.id == $n) | .title' $cache)
+    url=https://forkcast.org/eips/$num
+  fi
+
+  if [[ -z $title ]]; then
+    title=$(curl -fsL -m 10 https://eips.ethereum.org/EIPS/eip-$num \
+      | sed -n 's:.*<title>\(.*\)</title>.*:\1:p' | head -1 \
+      | sed -e 's/&amp;/\&/g' -e 's/&quot;/"/g' -e "s/&#39;/'/g" -e 's/&lt;/</g' -e 's/&gt;/>/g')
+    url=https://eips.ethereum.org/EIPS/eip-$num
+  fi
+
+  if [[ -z $title ]]; then
+    title="EIP-$num: not found on forkcast or eips.ethereum.org"
+    url=""
+  fi
+fi
+
+if ! $hud; then
+  print -r -- "$title"
+  [[ -n $url ]] && print -r -- "$url"
+  exit 0
+fi
+
+# Replace a label still on screen from a previous lookup, then detach so the
+# Quick Action finishes right away instead of running until the label closes.
+pkill -x eip-hud 2>/dev/null
+~/.local/bin/eip-hud "$title" "$url" </dev/null >/dev/null 2>&1 &!
