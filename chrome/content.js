@@ -1,4 +1,5 @@
-// Double-click (or select) an EIP/ERC number to see its title in a small popup.
+// Double-click (or select) an EIP/ERC number to see its title and description
+// in a small popup.
 //
 // A bare number needs 4-5 digits, so double-clicking ordinary numbers stays
 // quiet. Right after "EIP-"/"ERC-" any length works (EIP-20, ERC-721).
@@ -20,10 +21,12 @@ const STYLE = `
   }
   a { color: inherit; font-weight: 600; text-decoration: none; }
   a:hover { text-decoration: underline; }
-  .src { display: block; margin-top: 2px; font-size: 11px; color: #6e6e73; }
+  .desc { display: block; margin-top: 3px; color: #3a3a3c; }
+  .src { display: block; margin-top: 3px; font-size: 11px; color: #8e8e93; }
   @media (prefers-color-scheme: dark) {
     .box { background: #2c2c2e; color: #f5f5f7; border-color: rgba(255, 255, 255, 0.14); }
-    .src { color: #a1a1a6; }
+    .desc { color: #d1d1d6; }
+    .src { color: #98989d; }
   }
 `;
 
@@ -100,10 +103,18 @@ async function showPopup(rect, num) {
   link.target = "_blank";
   link.rel = "noopener noreferrer";
   link.textContent = result.title;
+  const parts = [link];
+  if (result.description) {
+    const desc = document.createElement("span");
+    desc.className = "desc";
+    desc.textContent = result.description;
+    parts.push(desc);
+  }
   const src = document.createElement("span");
   src.className = "src";
   src.textContent = result.source;
-  box.replaceChildren(link, src);
+  parts.push(src);
+  box.replaceChildren(...parts);
 }
 
 document.addEventListener("mouseup", (event) => {

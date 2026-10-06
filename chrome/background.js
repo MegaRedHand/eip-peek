@@ -1,32 +1,38 @@
-// Resolves EIP/ERC numbers to titles for the content script.
+// Resolves EIP/ERC numbers to a title and description for the content script.
 //
 // Lookups run here rather than in the content script because page origins
 // can't fetch these sites cross-origin; the extension's host permissions can.
 //
 // forkcast goes first: its index carries EIPs still sitting in a PR, which
 // eips.ethereum.org doesn't list. eips.ethereum.org is the fallback, and also
-// covers ERCs and anything forkcast doesn't track.
+// covers ERCs and anything forkcast doesn't track. Older EIPs predate the
+// description field, so they come back with a title only.
 
 const FORKCAST_INDEX = "https://forkcast.org/api/eips.json";
-const INDEX_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const INDEX_MAX_AGE_MS = DAY_MS;
+const SITE_MAX_AGE_MS = 7 * DAY_MS;
 
 /** forkcast's whole index is one file, so keep it in storage and refresh it daily. */
-async function forkcastTitles() {
+async function forkcastIndex() {
   const { forkcast } = await chrome.storage.local.get("forkcast");
-  if (forkcast && Date.now() - forkcast.fetchedAt < INDEX_MAX_AGE_MS) {
-    return forkcast.titles;
+  // Checking `eips` also refetches over the titles-only shape earlier versions stored.
+  if (forkcast?.eips && Date.now() - forkcast.fetchedAt < INDEX_MAX_AGE_MS) {
+    return forkcast.eips;
   }
   try {
     const res = await fetch(FORKCAST_INDEX);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const { eips } = await res.json();
-    const titles = Object.fromEntries(eips.map((e) => [e.id, e.title]));
-    await chrome.storage.local.set({ forkcast: { fetchedAt: Date.now(), titles } });
-    return titles;
+    const data = await res.json();
+    const eips = Object.fromEntries(
+      data.eips.map((e) => [e.id, { title: e.title, description: e.description ?? "" }]),
+    );
+    await chrome.storage.local.set({ forkcast: { fetchedAt: Date.now(), eips } });
+    return eips;
   } catch (err) {
     console.warn("forkcast index fetch failed:", err);
     // A stale index still answers most numbers.
-    return forkcast?.titles ?? {};
+    return forkcast?.eips ?? {};
   }
 }
 
@@ -40,26 +46,47 @@ function decodeEntities(s) {
     .replace(/&amp;/g, "&");
 }
 
-/** The page's <title> is "EIP-N: Title" (or "ERC-N: ..." after the ERC redirect). */
-async function eipsSiteTitle(num) {
+/**
+ * Title and description from the EIP's page, cached per EIP for a week.
+ * Misses aren't cached, so a newly published EIP shows up at once.
+ */
+async function eipsSite(num) {
+  const key = `eip:${num}`;
+  const { [key]: cached } = await chrome.storage.local.get(key);
+  if (cached && Date.now() - cached.fetchedAt < SITE_MAX_AGE_MS) return cached;
   try {
     const res = await fetch(`https://eips.ethereum.org/EIPS/eip-${num}`);
     if (!res.ok) return null;
-    const match = (await res.text()).match(/<title>([^<]*)<\/title>/);
-    return match ? { title: decodeEntities(match[1].trim()), url: res.url } : null;
+    const html = await res.text();
+    // The page's <title> is "EIP-N: Title" (or "ERC-N: ..." after the ERC redirect).
+    const title = html.match(/<title>([^<]*)<\/title>/)?.[1];
+    if (!title) return null;
+    const description = html.match(/<meta name="description" content="([^"]*)"/)?.[1] ?? "";
+    const entry = {
+      title: decodeEntities(title.trim()),
+      description: decodeEntities(description.trim()),
+      url: res.url,
+      fetchedAt: Date.now(),
+    };
+    await chrome.storage.local.set({ [key]: entry });
+    return entry;
   } catch (err) {
     console.warn(`eips.ethereum.org lookup for ${num} failed:`, err);
-    return null;
+    // Offline: a stale entry beats nothing.
+    return cached ?? null;
   }
 }
 
 async function lookup(num) {
-  const title = (await forkcastTitles())[num];
-  if (title) {
-    return { title, url: `https://forkcast.org/eips/${num}`, source: "forkcast.org" };
+  const fromForkcast = (await forkcastIndex())[num];
+  if (fromForkcast) {
+    return { ...fromForkcast, url: `https://forkcast.org/eips/${num}`, source: "forkcast.org" };
   }
-  const site = await eipsSiteTitle(num);
-  if (site) return { ...site, source: "eips.ethereum.org" };
+  const site = await eipsSite(num);
+  if (site) {
+    const { title, description, url } = site;
+    return { title, description, url, source: "eips.ethereum.org" };
+  }
   return { title: null };
 }
 

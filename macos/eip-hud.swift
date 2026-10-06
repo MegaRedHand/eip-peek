@@ -1,6 +1,6 @@
 // eip-hud: show a label next to the mouse cursor until the next click.
 //
-// Usage: eip-hud <title> [url]
+// Usage: eip-hud <title> [url] [description]
 //
 // The label never takes focus from the frontmost app. Clicking anywhere else or
 // switching apps closes it; clicking the label opens <url> (when given) and
@@ -43,7 +43,7 @@ final class Hud {
     let panel: NSPanel
     var clickMonitor: Any?
 
-    init(title: String, url: URL?) {
+    init(title: String, url: URL?, description: String) {
         let titleField = NSTextField(wrappingLabelWithString: title)
         titleField.font = .boldSystemFont(ofSize: 13)
         titleField.textColor = .labelColor
@@ -51,16 +51,24 @@ final class Hud {
         titleField.isSelectable = false
 
         var rows: [NSView] = [titleField]
+        if !description.isEmpty {
+            let descriptionField = NSTextField(wrappingLabelWithString: description)
+            descriptionField.font = .systemFont(ofSize: 12)
+            descriptionField.textColor = .secondaryLabelColor
+            descriptionField.preferredMaxLayoutWidth = maxTextWidth
+            descriptionField.isSelectable = false
+            rows.append(descriptionField)
+        }
         if let host = url?.host {
             let sourceField = NSTextField(labelWithString: host)
             sourceField.font = .systemFont(ofSize: 11)
-            sourceField.textColor = .secondaryLabelColor
+            sourceField.textColor = .tertiaryLabelColor
             rows.append(sourceField)
         }
         let stack = NSStackView(views: rows)
         stack.orientation = .vertical
         stack.alignment = .leading
-        stack.spacing = 2
+        stack.spacing = 3
         stack.edgeInsets = NSEdgeInsets(top: 8, left: 10, bottom: 8, right: 10)
         let size = stack.fittingSize
 
@@ -131,16 +139,17 @@ final class Hud {
 
 let args = CommandLine.arguments
 guard args.count >= 2 else {
-    FileHandle.standardError.write(Data("usage: eip-hud <title> [url]\n".utf8))
+    FileHandle.standardError.write(Data("usage: eip-hud <title> [url] [description]\n".utf8))
     exit(2)
 }
 let url = args.count >= 3 && !args[2].isEmpty ? URL(string: args[2]) : nil
+let description = args.count >= 4 ? args[3] : ""
 
 MainActor.assumeIsolated {
     let app = NSApplication.shared
     // No Dock icon, no menu bar, never becomes the active app.
     app.setActivationPolicy(.accessory)
-    let hud = Hud(title: args[1], url: url)
+    let hud = Hud(title: args[1], url: url, description: description)
     hud.show()
     app.run()
 }

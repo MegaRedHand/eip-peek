@@ -1,14 +1,16 @@
 # eip-peek
 
-See an EIP's title without leaving what you're reading.
+See an EIP's title and a short description without leaving what you're reading.
 
 ```
   ...this is blocked on 7805 landing first...
                         ▔▔▔▔
-                         ┌────────────────────────────────────────────────────────┐
-                         │ EIP-7805: Fork-choice enforced Inclusion Lists (FOCIL) │
-                         │ forkcast.org                                           │
-                         └────────────────────────────────────────────────────────┘
+                         ┌──────────────────────────────────────────────────────────┐
+                         │ EIP-7805: Fork-choice enforced Inclusion Lists (FOCIL)   │
+                         │ Allow a committee of validators to force-include a set   │
+                         │ of transactions in every block                           │
+                         │ forkcast.org                                             │
+                         └──────────────────────────────────────────────────────────┘
 ```
 
 Two tools, set up independently:
@@ -20,15 +22,22 @@ Two tools, set up independently:
 | Closes | Next click anywhere else, or switching apps | Next click anywhere else, Escape, or scrolling |
 | Click the label | Opens the EIP's page | Opens the EIP's page |
 
+Older EIPs predate the description field (EIP-1559, for example), so they show
+the title only.
+
 ## Where titles come from
 
 Both tools check [forkcast.org](https://forkcast.org) first, since it also
 tracks EIPs still sitting in a PR, then
 [eips.ethereum.org](https://eips.ethereum.org), which also covers ERCs.
 
-forkcast's full index is one file, so both tools cache it for a day (macOS:
-`~/Library/Caches/eip-title/forkcast-eips.json`; Chrome: extension storage).
-eips.ethereum.org is fetched live.
+| Source | Cached for | macOS cache | Chrome cache |
+|---|---|---|---|
+| forkcast's full index (one file) | 1 day | `~/Library/Caches/eip-title/forkcast-eips.json` | extension storage |
+| eips.ethereum.org, per EIP | 7 days | `~/Library/Caches/eip-title/eips/<N>` | extension storage |
+
+Numbers neither site knows aren't cached, so a newly published EIP shows up
+right away. When a refresh fails, the stale entry is used instead.
 
 ## macOS Quick Action
 
