@@ -22,6 +22,8 @@ Two tools, set up independently:
 | Closes | Next click anywhere else, or switching apps | Next click anywhere else, switching tabs, Escape, or scrolling |
 | Click the label | Opens the EIP's page | Opens the EIP's page |
 
+For the terminal, a [zsh plugin](#zsh-plugin) runs the same lookups.
+
 Older EIPs predate the description field (EIP-1559, for example), so they show
 the title only.
 
@@ -103,6 +105,35 @@ selection ──▶ Quick Action ──▶ eip-title ──▶ eip-hud (label at
 ```sh
 rm ~/.local/bin/eip-title ~/.local/bin/eip-hud
 rm -r ~/Library/Services/"EIP Title.workflow" ~/Library/Caches/eip-title
+```
+
+## zsh plugin
+
+Terminal commands in `zsh/eip.plugin.zsh`. They build on the macOS install's
+`eip-title`, so run `./macos/install.sh` first.
+
+| Command | What it does |
+|---|---|
+| `eipeek 7805 1559` | Title and description of each EIP |
+| `eip 7805` | Opens the EIP's page; forkcast's for EIPs still open as PRs |
+| `eipraw 7805` | Prints the EIP's markdown: EIPs repo, then ERCs repo, then the open PR (needs [`gh`](https://cli.github.com)) |
+| `eipread 7805` | Opens that markdown in vim |
+
+Numbers work in any form: `1559`, `EIP-1559`, `ERC-20`.
+
+### Setup
+
+With oh-my-zsh, link the folder in as the `eip` plugin, then add `eip` to
+`plugins=(...)` in `~/.zshrc`:
+
+```sh
+ln -s "$PWD/zsh" ~/.oh-my-zsh/custom/plugins/eip
+```
+
+Without oh-my-zsh, add this to `~/.zshrc`:
+
+```sh
+source /path/to/eip-peek/zsh/eip.plugin.zsh
 ```
 
 ## Chrome extension
