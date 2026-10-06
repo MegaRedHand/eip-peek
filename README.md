@@ -1,16 +1,18 @@
 # eip-peek
 
-See an EIP's title and a short description without leaving what you're reading.
+See an EIP's title, a short description and its network-upgrade status without
+leaving what you're reading.
 
 ```
   ...this is blocked on 7805 landing first...
                         ▔▔▔▔
-                         ┌──────────────────────────────────────────────────────────┐
-                         │ EIP-7805: Fork-choice enforced Inclusion Lists (FOCIL)   │
-                         │ Allow a committee of validators to force-include a set   │
-                         │ of transactions in every block                           │
-                         │ forkcast.org                                             │
-                         └──────────────────────────────────────────────────────────┘
+                         ┌─────────────────────────────────────────────────────────────┐
+                         │ EIP-7805: Fork-choice enforced Inclusion Lists (FOCIL)      │
+                         │ Allow a committee of validators to force-include a set of   │
+                         │ transactions in every block                                 │
+                         │ Scheduled for Hegota (headliner) · Declined for Glamsterdam │
+                         │ forkcast.org                                                │
+                         └─────────────────────────────────────────────────────────────┘
 ```
 
 Two tools, set up independently:
@@ -26,6 +28,10 @@ For the terminal, a [zsh plugin](#zsh-plugin) runs the same lookups.
 
 Older EIPs predate the description field (EIP-1559, for example), so they show
 the title only.
+
+The upgrade status comes from forkcast alone: the current stage in each network
+upgrade forkcast tracks the EIP for, newest upgrade first. EIPs forkcast
+doesn't track for any upgrade show no status.
 
 ## Where titles come from
 
@@ -81,6 +87,7 @@ right away. When a refresh fails, the stale entry is used instead.
 | Hotkey | Select the number (double-click it), press the hotkey |
 | Menu | Select the number, then right-click → **Services → EIP Title** |
 | Terminal | `eip-title 7805`, or `echo "see EIP-4337" \| eip-title` |
+| Scripts | `eip-title --json 7805` prints `{title, description, status, url}` |
 
 The first number in the selection is used, so selecting `EIP-1559` works too.
 
@@ -114,7 +121,7 @@ Terminal commands in `zsh/eip.plugin.zsh`. They build on the macOS install's
 
 | Command | What it does |
 |---|---|
-| `eipeek 7805 1559` | Title and description of each EIP |
+| `eipeek 7805 1559` | Title, description and upgrade status of each EIP |
 | `eip 7805` | Opens the EIP's page; forkcast's for EIPs still open as PRs |
 | `eipraw 7805` | Prints the EIP's markdown: EIPs repo, then ERCs repo, then the open PR (needs [`gh`](https://cli.github.com)) |
 | `eipread 7805` | Opens that markdown in vim |

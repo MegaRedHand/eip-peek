@@ -55,16 +55,14 @@ eipraw() {
   return 1
 }
 
-# Shows the title and description of each given EIP.
+# Shows the title, description and forkcast upgrade status of each given EIP.
 eipeek() {
-  local n lines
+  local n
   for n in "$@"; do
-    # eip-title prints the title, then the description if there is one, then the URL.
-    lines=("${(@f)$($_EIP_TITLE "$n")}")
-    print -r -- "${lines[1]}"
-    if (( ${#lines} == 3 )); then
-      print -r -- "    ${lines[2]}"
-    fi
+    $_EIP_TITLE --json "$n" | /usr/bin/jq -r '
+      .title,
+      (.description | select(. != "") | "    " + .),
+      (.status | select(. != "") | "    Upgrade status: " + .)'
   done
 }
 

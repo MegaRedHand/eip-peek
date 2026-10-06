@@ -1,5 +1,5 @@
-// Double-click (or select) an EIP/ERC number to see its title and description
-// in a small popup.
+// Double-click (or select) an EIP/ERC number to see its title, description and
+// forkcast upgrade status in a small popup.
 //
 // A bare number needs 4-5 digits, so double-clicking ordinary numbers stays
 // quiet. Right after "EIP-"/"ERC-" any length works (EIP-20, ERC-721).
@@ -22,10 +22,12 @@ const STYLE = `
   a { color: inherit; font-weight: 600; text-decoration: none; }
   a:hover { text-decoration: underline; }
   .desc { display: block; margin-top: 3px; color: #3a3a3c; }
+  .status { display: block; margin-top: 3px; font-weight: 500; color: #4f46e5; }
   .src { display: block; margin-top: 3px; font-size: 11px; color: #8e8e93; }
   @media (prefers-color-scheme: dark) {
     .box { background: #2c2c2e; color: #f5f5f7; border-color: rgba(255, 255, 255, 0.14); }
     .desc { color: #d1d1d6; }
+    .status { color: #a5b4fc; }
     .src { color: #98989d; }
   }
 `;
@@ -109,6 +111,13 @@ async function showPopup(rect, num) {
     desc.className = "desc";
     desc.textContent = result.description;
     parts.push(desc);
+  }
+  // forkcast's upgrade status, e.g. "Scheduled for Glamsterdam (headliner)".
+  if (result.status) {
+    const status = document.createElement("span");
+    status.className = "status";
+    status.textContent = result.status;
+    parts.push(status);
   }
   const src = document.createElement("span");
   src.className = "src";

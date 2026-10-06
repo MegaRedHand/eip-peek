@@ -1,28 +1,34 @@
 #!/bin/zsh
-# eip-title: look up the title and description of the first EIP/ERC number in
-# $1 (or stdin).
+# eip-title: look up the title, description and upgrade status of the first
+# EIP/ERC number in $1 (or stdin).
 #
 # Checks forkcast's EIP index first, since it carries EIPs still sitting in a PR
 # that eips.ethereum.org doesn't list, then falls back to eips.ethereum.org
 # (which also redirects ERC numbers). Older EIPs predate the description field,
 # so they come back with a title only.
 #
+# The upgrade status ("Scheduled for Glamsterdam (headliner)") is forkcast's
+# alone: the current stage in each network upgrade forkcast tracks the EIP for,
+# newest upgrade first.
+#
 # Caches, under ~/Library/Caches/eip-title/:
 #   forkcast-eips.json  forkcast's whole index, refreshed daily
 #   eips/<N>            one eips.ethereum.org result, kept for a week. Misses
 #                       aren't cached, so a newly published EIP shows up at once
 #
-# Usage: eip-title [--hud] [text]
-#   --hud  show the result in a label next to the cursor (Quick Action mode);
-#          see eip-hud.swift
+# Usage: eip-title [--hud | --json] [text]
+#   (none)  print the title, then the description, status and URL when known
+#   --hud   show the result in a label next to the cursor (Quick Action mode);
+#           see eip-hud.swift
+#   --json  print {title, description, status, url}, empty strings when unknown
 
 set -u
 
-hud=false
-if [[ ${1:-} == --hud ]]; then
-  hud=true
-  shift
-fi
+mode=text
+case ${1:-} in
+  --hud) mode=hud; shift ;;
+  --json) mode=json; shift ;;
+esac
 
 # Decodes the HTML entities eips.ethereum.org uses in its <title> and meta tags.
 decode() {
@@ -34,6 +40,7 @@ num=$(print -r -- "$input" | grep -oE '[0-9]+' | head -1)
 
 title=""
 description=""
+upgrade_status=""
 url=""
 if [[ -z $num || ${#num} -gt 6 ]]; then
   title="No EIP number in selection: ${input[1,40]}"
@@ -53,10 +60,17 @@ else
   fi
 
   if [[ -s $index ]]; then
-    # Two lines, title then description; nothing when forkcast lacks the EIP.
-    { read -r title; read -r description } < <(
-      /usr/bin/jq -r --argjson n $num \
-        '.eips[] | select(.id == $n) | .title, (.description // "" | gsub("\\s+"; " "))' $index
+    # Three lines (title, description, status); nothing when forkcast lacks the EIP.
+    { read -r title; read -r description; read -r upgrade_status } < <(
+      /usr/bin/jq -r --argjson n $num '
+        .eips[] | select(.id == $n)
+        | .title,
+          (.description // "" | gsub("\\s+"; " ")),
+          # Upgrades are listed oldest first; the last history entry is the current stage.
+          ([.forkRelationships // [] | .[] | select(.statusHistory // [] | length > 0)
+            | "\(.statusHistory[-1].status) for \(.forkName)\(if .isHeadliner then " (headliner)" else "" end)"]
+           | reverse | join(" · "))
+      ' $index
     )
     url=https://forkcast.org/eips/$num
   fi
@@ -79,14 +93,22 @@ else
   fi
 fi
 
-if ! $hud; then
-  print -r -- "$title"
-  [[ -n $description ]] && print -r -- "$description"
-  [[ -n $url ]] && print -r -- "$url"
-  exit 0
-fi
+case $mode in
+  text)
+    print -r -- "$title"
+    [[ -n $description ]] && print -r -- "$description"
+    [[ -n $upgrade_status ]] && print -r -- "$upgrade_status"
+    [[ -n $url ]] && print -r -- "$url"
+    exit 0
+    ;;
+  json)
+    /usr/bin/jq -nc --arg title "$title" --arg description "$description" \
+      --arg status "$upgrade_status" --arg url "$url" '$ARGS.named'
+    exit 0
+    ;;
+esac
 
 # Replace a label still on screen from a previous lookup, then detach so the
 # Quick Action finishes right away instead of running until the label closes.
 pkill -x eip-hud 2>/dev/null
-~/.local/bin/eip-hud "$title" "$url" "$description" </dev/null >/dev/null 2>&1 &!
+~/.local/bin/eip-hud "$title" "$url" "$description" "$upgrade_status" </dev/null >/dev/null 2>&1 &!

@@ -1,6 +1,6 @@
 // eip-hud: show a label next to the mouse cursor until the next click.
 //
-// Usage: eip-hud <title> [url] [description]
+// Usage: eip-hud <title> [url] [description] [status]
 //
 // The label never takes focus from the frontmost app. Clicking anywhere else or
 // switching apps closes it; clicking the label opens <url> (when given) and
@@ -28,6 +28,16 @@ func roundedMask(radius: CGFloat) -> NSImage {
     return image
 }
 
+/// A non-selectable label that wraps at `maxTextWidth`.
+func wrappingLabel(_ text: String, font: NSFont, color: NSColor) -> NSTextField {
+    let field = NSTextField(wrappingLabelWithString: text)
+    field.font = font
+    field.textColor = color
+    field.preferredMaxLayoutWidth = maxTextWidth
+    field.isSelectable = false
+    return field
+}
+
 final class HudView: NSVisualEffectView {
     var onClick: () -> Void = {}
 
@@ -43,21 +53,15 @@ final class Hud {
     let panel: NSPanel
     var clickMonitor: Any?
 
-    init(title: String, url: URL?, description: String) {
-        let titleField = NSTextField(wrappingLabelWithString: title)
-        titleField.font = .boldSystemFont(ofSize: 13)
-        titleField.textColor = .labelColor
-        titleField.preferredMaxLayoutWidth = maxTextWidth
-        titleField.isSelectable = false
-
-        var rows: [NSView] = [titleField]
+    init(title: String, url: URL?, description: String, status: String) {
+        var rows: [NSView] = [wrappingLabel(title, font: .boldSystemFont(ofSize: 13), color: .labelColor)]
         if !description.isEmpty {
-            let descriptionField = NSTextField(wrappingLabelWithString: description)
-            descriptionField.font = .systemFont(ofSize: 12)
-            descriptionField.textColor = .secondaryLabelColor
-            descriptionField.preferredMaxLayoutWidth = maxTextWidth
-            descriptionField.isSelectable = false
-            rows.append(descriptionField)
+            rows.append(wrappingLabel(description, font: .systemFont(ofSize: 12), color: .secondaryLabelColor))
+        }
+        // forkcast's upgrade status, e.g. "Scheduled for Glamsterdam (headliner)".
+        if !status.isEmpty {
+            let font = NSFont.systemFont(ofSize: 12, weight: .medium)
+            rows.append(wrappingLabel(status, font: font, color: .controlAccentColor))
         }
         if let host = url?.host {
             let sourceField = NSTextField(labelWithString: host)
@@ -139,17 +143,18 @@ final class Hud {
 
 let args = CommandLine.arguments
 guard args.count >= 2 else {
-    FileHandle.standardError.write(Data("usage: eip-hud <title> [url] [description]\n".utf8))
+    FileHandle.standardError.write(Data("usage: eip-hud <title> [url] [description] [status]\n".utf8))
     exit(2)
 }
 let url = args.count >= 3 && !args[2].isEmpty ? URL(string: args[2]) : nil
 let description = args.count >= 4 ? args[3] : ""
+let status = args.count >= 5 ? args[4] : ""
 
 MainActor.assumeIsolated {
     let app = NSApplication.shared
     // No Dock icon, no menu bar, never becomes the active app.
     app.setActivationPolicy(.accessory)
-    let hud = Hud(title: args[1], url: url, description: description)
+    let hud = Hud(title: args[1], url: url, description: description, status: status)
     hud.show()
     app.run()
 }
