@@ -137,3 +137,7 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") hidePopup();
 });
 document.addEventListener("scroll", hidePopup, { capture: true, passive: true });
+// Switching tabs (or minimizing the window) closes it too.
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) hidePopup();
+});

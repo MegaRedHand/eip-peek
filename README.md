@@ -19,7 +19,7 @@ Two tools, set up independently:
 |---|---|---|
 | Works in | Any app, including the Slack desktop app | Web pages in Chrome, including Slack in the browser |
 | Trigger | Select a number, press a hotkey | Double-click a number |
-| Closes | Next click anywhere else, or switching apps | Next click anywhere else, Escape, or scrolling |
+| Closes | Next click anywhere else, or switching apps | Next click anywhere else, switching tabs, Escape, or scrolling |
 | Click the label | Opens the EIP's page | Opens the EIP's page |
 
 Older EIPs predate the description field (EIP-1559, for example), so they show
